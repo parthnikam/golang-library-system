@@ -15,6 +15,7 @@ type Lease struct {
 	Status     string
 	Title      string
 	Author     string
+	Username   string
 }
 
 // CheckoutBook records a lease for userID and removes one available copy.
@@ -123,12 +124,28 @@ func ReturnLease(userID, leaseID int64) error {
 
 // ListActiveLeases returns the books userID currently has checked out.
 func ListActiveLeases(userID int64) ([]Lease, error) {
-	rows, err := DB.Query(`
-		SELECT l.id, l.user_id, l.book_id, l.borrowed_at, l.status, b.title, b.author
+	return queryLeases(`
+		SELECT l.id, l.user_id, l.book_id, l.borrowed_at, l.status, b.title, b.author, u.username
 		FROM leases l
 		JOIN books b ON b.id = l.book_id
+		JOIN users u ON u.id = l.user_id
 		WHERE l.user_id = ? AND l.status = 'active'
 		ORDER BY l.id DESC`, userID)
+}
+
+// ListAllActiveLeases returns every book that is currently out, with the borrower.
+func ListAllActiveLeases() ([]Lease, error) {
+	return queryLeases(`
+		SELECT l.id, l.user_id, l.book_id, l.borrowed_at, l.status, b.title, b.author, u.username
+		FROM leases l
+		JOIN books b ON b.id = l.book_id
+		JOIN users u ON u.id = l.user_id
+		WHERE l.status = 'active'
+		ORDER BY b.title COLLATE NOCASE, u.username COLLATE NOCASE, l.id`)
+}
+
+func queryLeases(query string, args ...any) ([]Lease, error) {
+	rows, err := DB.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list checkouts: %w", err)
 	}
@@ -137,7 +154,10 @@ func ListActiveLeases(userID int64) ([]Lease, error) {
 	var leases []Lease
 	for rows.Next() {
 		var lease Lease
-		if err := rows.Scan(&lease.ID, &lease.UserID, &lease.BookID, &lease.BorrowedAt, &lease.Status, &lease.Title, &lease.Author); err != nil {
+		if err := rows.Scan(
+			&lease.ID, &lease.UserID, &lease.BookID, &lease.BorrowedAt,
+			&lease.Status, &lease.Title, &lease.Author, &lease.Username,
+		); err != nil {
 			return nil, err
 		}
 		leases = append(leases, lease)

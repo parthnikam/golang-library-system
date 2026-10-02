@@ -93,6 +93,24 @@ func TestSearchAndCheckout(t *testing.T) {
 		t.Fatalf("lease: %+v", lease)
 	}
 
+	out, err := ListAllActiveLeases()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 1 || out[0].Username != "bob" || out[0].Title != "The Hobbit" || out[0].UserID != userID {
+		t.Fatalf("all leases: %+v", out)
+	}
+	if _, err := CheckoutBook(otherID, percent[0].ID); err != nil {
+		t.Fatal(err)
+	}
+	out, err = ListAllActiveLeases()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 2 || out[0].Username != "ada" || out[0].Title != "100% Done" || out[1].Username != "bob" {
+		t.Fatalf("all leases with two borrowers: %+v", out)
+	}
+
 	if _, err := CheckoutBook(userID, hobbit.ID); err == nil {
 		t.Fatal("expected the last copy to be unavailable")
 	}
@@ -116,7 +134,14 @@ func TestSearchAndCheckout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(active) != 1 || active[0].UserID != userID {
+	if len(active) != 1 || active[0].UserID != userID || active[0].Username != "bob" {
 		t.Fatalf("active leases: %+v", active)
+	}
+	out, err = ListAllActiveLeases()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out) != 2 {
+		t.Fatalf("returned book should leave the other lease: %+v", out)
 	}
 }

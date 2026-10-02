@@ -43,6 +43,8 @@ func (m Model) View() string {
 		b.WriteString(m.viewSearch())
 	case scrLoans:
 		b.WriteString(m.viewLoans())
+	case scrAllLeases:
+		b.WriteString(m.viewAllLeases())
 	case scrAdd:
 		b.WriteString(m.viewAdd())
 	}
@@ -159,10 +161,20 @@ func bookRow(book db.Book, selected bool, width int) string {
 }
 
 func (m Model) viewLoans() string {
+	return m.viewLeaseList("Books you have checked out", "You have no books checked out.", false)
+}
+
+func (m Model) viewAllLeases() string {
+	return m.viewLeaseList("Books currently leased", "No books are leased right now.", true)
+}
+
+func (m Model) viewLeaseList(heading, empty string, showBorrower bool) string {
 	var b strings.Builder
-	b.WriteString("Books you have checked out\n\n")
+	b.WriteString(heading)
+	b.WriteString("\n\n")
 	if len(m.leases) == 0 && !m.busy {
-		b.WriteString("You have no books checked out.\n")
+		b.WriteString(empty)
+		b.WriteByte('\n')
 		return b.String()
 	}
 	height := m.visibleCount()
@@ -179,6 +191,9 @@ func (m Model) viewLoans() string {
 		marker := "  "
 		title := fmt.Sprintf("%s#%d  %s", marker, lease.ID, lease.Title)
 		detail := fmt.Sprintf("    %s  ·  user #%d  ·  %s", lease.Author, lease.UserID, lease.BorrowedAt)
+		if showBorrower {
+			detail = fmt.Sprintf("    %s  ·  user #%d  ·  %s  ·  %s", lease.Username, lease.UserID, lease.Author, lease.BorrowedAt)
+		}
 		if i == m.leaseCursor {
 			marker = "> "
 			title = selStyle.Render(fmt.Sprintf("%s#%d  %s", marker, lease.ID, lease.Title))
@@ -233,6 +248,8 @@ func (m Model) hint() string {
 		return "type to search    ↑↓ choose    enter check out    esc back"
 	case scrLoans:
 		return "↑↓ choose    enter return    esc back"
+	case scrAllLeases:
+		return "↑↓ move    esc back"
 	case scrAdd:
 		return "tab next field    enter on copies saves    esc back"
 	default:

@@ -20,6 +20,7 @@ const (
 	scrMenu
 	scrSearch
 	scrLoans
+	scrAllLeases
 	scrAdd
 )
 
@@ -29,6 +30,7 @@ const (
 	actQuit
 	actSearch
 	actLoans
+	actAllLeases
 	actAdd
 	actLogout
 )
@@ -206,6 +208,8 @@ func (m Model) onKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.onSearchKey(msg)
 	case scrLoans:
 		return m.onLoansKey(msg)
+	case scrAllLeases:
+		return m.onAllLeasesKey(msg)
 	case scrAdd:
 		return m.onAddKey(msg)
 	default:
@@ -295,6 +299,19 @@ func (m Model) onLoansKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
+func (m Model) onAllLeasesKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "esc", "q":
+		return m.toMenu(), nil
+	case "up", "k":
+		return m.moveLease(-1), nil
+	case "down", "j":
+		return m.moveLease(1), nil
+	default:
+		return m, nil
+	}
+}
+
 func (m Model) onAddKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
@@ -344,6 +361,7 @@ func (m Model) items() []menuItem {
 		{"My checkouts", actLoans},
 	}
 	if m.user != nil && m.user.Role == "librarian" {
+		items = append(items, menuItem{"All leased books", actAllLeases})
 		items = append(items, menuItem{"Add a book", actAdd})
 	}
 	items = append(items, menuItem{"Log out", actLogout})
@@ -381,6 +399,8 @@ func (m Model) activate() (tea.Model, tea.Cmd) {
 		return m.openSearch()
 	case actLoans:
 		return m.openLoans()
+	case actAllLeases:
+		return m.openAllLeases()
 	case actAdd:
 		return m.openAdd()
 	case actLogout:
@@ -432,6 +452,20 @@ func (m Model) openLoans() (Model, tea.Cmd) {
 	userID := m.user.ID
 	return m, func() tea.Msg {
 		leases, err := db.ListActiveLeases(userID)
+		return leasesMsg{leases: leases, err: err}
+	}
+}
+
+func (m Model) openAllLeases() (Model, tea.Cmd) {
+	m.screen = scrAllLeases
+	m.leaseCursor = 0
+	m.prompt = ""
+	m.promptKind = ""
+	m.clearNotice()
+	m.busy = true
+	m.status = "Loading checkouts..."
+	return m, func() tea.Msg {
+		leases, err := db.ListAllActiveLeases()
 		return leasesMsg{leases: leases, err: err}
 	}
 }
